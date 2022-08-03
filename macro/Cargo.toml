@@ -1,0 +1,14 @@
+[package]
+name = "flow-html-macro"
+version = "0.1.0"
+description = "FLOW-HTML-MACRO"
+edition = "2021"
+authors = ["Flow Developers"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = {version = "*", features = ["full"]}
+quote = "*"
+proc-macro2="*"

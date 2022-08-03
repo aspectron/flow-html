@@ -1,0 +1,9 @@
+[package]
+name = "flow-html"
+version = "0.1.0"
+description = "FLOW-HTML"
+edition = "2021"
+authors = ["Flow Developers"]
+
+[dependencies]
+flow-html-macro={path="./macro"}
