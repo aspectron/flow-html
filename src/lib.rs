@@ -1,34 +1,14 @@
+pub mod render;
 pub use flow_html_macro::{html};
+pub use render::{Render, Result, Write};
 use std::collections::BTreeMap;
-use std::fmt::{Result, Write};
-
-pub trait Render:Sized{
-    fn to_string(self)->String{
-        let mut buf = String::from("");
-        self.render(&mut buf).unwrap();
-        buf
-    }
-    fn render<W:Write>(self, _w:&mut W)->Result;
-}
-
-impl Render for () {
-    fn render<W:Write>(self, _w:&mut W)->Result{
-        Ok(())
-    }
-}
-
-impl Render for &str {
-    fn render<W:Write>(self, w:&mut W)->Result{
-        write!(w, "{}", self)
-    }
-}
 
 
 #[derive(Debug)]
 pub struct HtmlElement<'a, T:Render>{
     pub tag:&'a str,
     pub attributes:BTreeMap<&'a str, &'a str>,
-    pub children:Option<Vec<T>>
+    pub children:Option<T>
 }
 
 impl<T:Render> Render for HtmlElement<'_, T>{
@@ -39,9 +19,7 @@ impl<T:Render> Render for HtmlElement<'_, T>{
         }
         write!(w, ">")?;
         if let Some(children) = self.children{
-            for child in children{
-                child.render(w)?;
-            }
+            children.render(w)?;
         }
         write!(w, "</{}>", self.tag)
     }
@@ -54,11 +32,17 @@ mod test{
     use crate as flow_html;
     use crate::Render;
     #[test]
-    pub fn test(){
+    pub fn tree_html(){
         
-        let num  = "world";
+        let world  = "world";
+        let num  = 123;
+        let string  = "123".to_string();
         let tree = html!{
-            <div>{"hello"} {num}</div>
+            <div>
+                {"hello"} {world} {num} {num} {num} {string} {true}
+                {1.2 as f64}
+                <h1>{"hello 123"} {num}</h1>
+            </div>
         };
         
         /*
@@ -72,6 +56,6 @@ mod test{
         
 
         println!("result: {:?}", tree);
-        println!("tree.render: {}", tree.to_string());
+        println!("tree.render: {}", tree.html());
     }
 }

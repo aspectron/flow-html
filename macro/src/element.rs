@@ -4,6 +4,7 @@ use quote::{quote, ToTokens};
 use syn::{Block, Token, Result};
 use syn::parse::{Parse, ParseStream};
 use std::collections::BTreeMap;
+use proc_macro_error::abort;
 
 pub struct Element{
     pub tag:OpeningTag,
@@ -12,13 +13,27 @@ pub struct Element{
 
 impl Parse for Element{
     fn parse(input: ParseStream) -> Result<Self> {
+        let span = input.span();
         let tag = input.parse::<OpeningTag>()?;
+        
         let mut children = None;
         if !tag.self_closing{
             children = Some(input.parse::<Nodes>()?);
             let closing_tag = input.parse::<ClosingTag>()?;
             if closing_tag.name != tag.name{
-                panic!("Closing tag '{}' dont match '{}'", closing_tag.name, tag.name);
+                //panic!("Closing tag '{}' dont match '{}'", closing_tag.name, tag.name);
+                //panic!("Closing tag '{}' dont match '{}'", closing_tag.name, tag.name);
+                /*
+                syn::Error::new(input.span(),
+                    format!("Closing tag '{}' dont match '{}'", closing_tag.name, tag.name)
+                ).to_compile_error();
+                */
+
+                //quote_spanned! {
+                //    input.span() =>
+                //let ty: syn::Type = syn::parse(input).unwrap();
+                abort!(span, format!("Closing tag '{}' is missing", tag.name));
+                //};
             }
         }
 
@@ -52,22 +67,34 @@ impl ToTokens for Element{
                 ));
             }
 
+            /*
+            (1, 2)
+            ((1, 2), 3)
+            ((1, 2), (3, 4))
+            (((1, 2), (3, 4)), 5)
+            */
+
             let children = match &self.children{
                 Some(nodes)=>{
-                    let mut children = vec![];
-                    for node in &nodes.list{
-                        children.push(quote!(
-                            list.push(#node);
-                        ))
+                    if nodes.list.len() == 1{
+                        let node = &nodes.list[0];
+                        quote!{children:Some(#node)}
+                    }else{
+                        let mut list = nodes.list.iter()
+                            .map(|item| quote!{#item});
+                        let first = list.next();
+                        let second = list.next();
+                        let children = list.fold(
+                            quote!{(#first, #second)},
+                            |last, item| quote!{(#last, #item)}
+                        );
+                        //println!("children: {:?}", children);
+                        quote!{children:Some(#children)}
                     }
-                    quote!(children:Some({
-                        let mut list = vec![];
-                        #(#children)*
-                        list
-                    }))
                 }
-                None=>
+                None=>{
                     quote!(children:Option::<Vec<()>>::None)
+                }
             };
             let tag = self.tag.name.to_string();
             quote!{
@@ -96,6 +123,8 @@ impl Parse for OpeningTag{
     fn parse(input: ParseStream) -> Result<Self> {
         input.parse::<Token![<]>()?;
         let name = input.parse::<Ident>()?;
+        //TODO read attributes
+
         let mut self_closing = false;
         if input.peek(Token![/]){
             input.parse::<Token![/]>()?;
@@ -132,7 +161,7 @@ pub struct Nodes{
 impl Parse for Nodes{
     fn parse(input: ParseStream) -> Result<Self> {
         let mut list:Vec<Node> = vec![];
-        while !input.peek(Token![<]){
+        while !input.peek(Token![<]) || !input.peek2(Token![/]){
             let node = input.parse::<Node>()?;
             list.push(node);
         }
@@ -169,7 +198,8 @@ impl ToTokens for Node{
             }
             Node::Block(block)=>{
                 if block.stmts.len() == 1{
-                    block.stmts[0].to_tokens(tokens);
+                    let stm = &block.stmts[0];
+                    stm.to_tokens(tokens);
                 }else{
                     block.to_tokens(tokens);
                 }
