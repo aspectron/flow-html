@@ -1,10 +1,9 @@
-//use proc_macro;
-use proc_macro2::{/*TokenTree, Spacing, Span, Punct,*/ TokenStream, Ident};
+use proc_macro2::{TokenStream, Ident};
 use quote::{quote, ToTokens};
 use syn::{Block, Token, Result};
 use syn::parse::{Parse, ParseStream};
-use std::collections::BTreeMap;
 use proc_macro_error::abort;
+use crate::attributes::{Attributes, parse_attributes};
 
 pub struct Element{
     pub tag:OpeningTag,
@@ -21,19 +20,7 @@ impl Parse for Element{
             children = Some(input.parse::<Nodes>()?);
             let closing_tag = input.parse::<ClosingTag>()?;
             if closing_tag.name != tag.name{
-                //panic!("Closing tag '{}' dont match '{}'", closing_tag.name, tag.name);
-                //panic!("Closing tag '{}' dont match '{}'", closing_tag.name, tag.name);
-                /*
-                syn::Error::new(input.span(),
-                    format!("Closing tag '{}' dont match '{}'", closing_tag.name, tag.name)
-                ).to_compile_error();
-                */
-
-                //quote_spanned! {
-                //    input.span() =>
-                //let ty: syn::Type = syn::parse(input).unwrap();
-                abort!(span, format!("Closing tag '{}' is missing", tag.name));
-                //};
+                abort!(span, format!("Closing tag is missing for '{}'", tag.name));
             }
         }
 
@@ -54,25 +41,12 @@ impl Element{
 
 impl ToTokens for Element{
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let mut properties:Vec<TokenStream> = vec![];
+        //let mut properties:Vec<TokenStream> = vec![];
         let el = if self.is_custom_element(){
             let name = &self.tag.name;
             quote!(#name {})
         }else{
-            let attributes:BTreeMap<String, String> = BTreeMap::new();
-
-            for (key, value) in attributes.iter() {
-                properties.push(quote!(
-                    map.insert(#key, #value);
-                ));
-            }
-
-            /*
-            (1, 2)
-            ((1, 2), 3)
-            ((1, 2), (3, 4))
-            (((1, 2), (3, 4)), 5)
-            */
+            let attributes = self.tag.attributes.to_token_stream();
 
             let children = match &self.children{
                 Some(nodes)=>{
@@ -80,19 +54,10 @@ impl ToTokens for Element{
                         let node = &nodes.list[0];
                         quote!{children:Some(#node)}
                     }else{
-                        /*
-                        let mut list = nodes.list.iter()
-                            .map(|item| quote!{#item});
-                        let first = list.next();
-
-                        println!("first: {:?}", first);
-                        */
-
                         let mut group = vec![];
                         let list:Vec<TokenStream> = nodes.list.iter()
-                                    .map(|item| quote!{#item})
-                                    .collect();
-                        //let count = 6;
+                                .map(|item| quote!{#item})
+                                .collect();
                         for chunk in list.chunks(10){
                             group.push(quote!{ ( #(#chunk),* ) } );
                             if group.len() == 10{
@@ -101,22 +66,8 @@ impl ToTokens for Element{
                                 group.push(combined);
                             }
                         }
-
-                        //println!("\n =======> group: {:?}", group);
                         
                         let children = quote!{(#(#group),*)};
-
-                        /*
-                        let mut list = nodes.list.iter()
-                            .map(|item| quote!{#item});
-                        let first = list.next();
-                        let second = list.next();
-                        let children = list.fold(
-                            quote!{(#first, #second)},
-                            |last, item| quote!{(#last, #item)}
-                        );
-                        //println!("children: {:?}", children);
-                        */
                         quote!{children:Some(#children)}
                     }
                 }
@@ -126,13 +77,9 @@ impl ToTokens for Element{
             };
             let tag = self.tag.name.to_string();
             quote!{
-                flow_html::HtmlElement {
+                flow_html::Element {
                     tag:#tag,
-                    attributes:{
-                        let mut map = std::collections::BTreeMap::new();
-                        #(#properties)*
-                        map
-                    },
+                    #attributes,
                     #children
                 }
             }
@@ -144,14 +91,15 @@ impl ToTokens for Element{
 
 pub struct OpeningTag{
     pub name:Ident,
-    pub self_closing:bool
+    pub self_closing:bool,
+    pub attributes:Attributes
 }
 
 impl Parse for OpeningTag{
     fn parse(input: ParseStream) -> Result<Self> {
         input.parse::<Token![<]>()?;
         let name = input.parse::<Ident>()?;
-        //TODO read attributes
+        let attributes = parse_attributes(input)?;
 
         let mut self_closing = false;
         if input.peek(Token![/]){
@@ -161,7 +109,8 @@ impl Parse for OpeningTag{
         input.parse::<Token![>]>()?;
         Ok(Self{
             name,
-            self_closing
+            self_closing,
+            attributes
         })
     }
 }
