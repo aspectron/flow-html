@@ -20,38 +20,42 @@ impl Render for &str {
         write!(w, "{}", self)
     }
 }
-impl Render for usize {
-    fn render<W:Write>(self, w:&mut W)->Result{
-        write!(w, "{}", self)
-    }
-}
-impl Render for f32 {
-    fn render<W:Write>(self, w:&mut W)->Result{
-        write!(w, "{}", self)
-    }
-}
-impl Render for f64 {
-    fn render<W:Write>(self, w:&mut W)->Result{
-        write!(w, "{}", self)
+
+macro_rules! impl_tuple {
+    ($($ident:ident)+) => {
+        impl<$($ident: Render,)+> Render for ($($ident,)+) {
+            #[inline]
+            #[allow(non_snake_case)]
+            fn render<W:Write>(self, w:&mut W)->Result{
+                let ($($ident,)+) = self;
+                $($ident.render(w)?;)+
+                Ok(())
+            }
+        }
     }
 }
 
-impl Render for String {
-    fn render<W:Write>(self, w:&mut W)->Result{
-        write!(w, "{}", self)
+macro_rules! impl_types {
+    ($($ident:ident)+) => {
+        $(
+            impl Render for $ident {
+                fn render<W:Write>(self, w:&mut W)->Result{
+                    write!(w, "{}", self)
+                }
+            }
+        )+
     }
 }
 
+impl_types!{f32 f64 u128 u64 u32 u16 u8 i8 i16 i32 i64 i128 bool String usize}
 
-impl Render for bool {
-    fn render<W:Write>(self, w:&mut W)->Result{
-        write!(w, "{}", self)
-    }
-}
+impl_tuple!{A B}
+impl_tuple!{A B C}
+impl_tuple!{A B C D}
+impl_tuple!{A B C D E}
+impl_tuple!{A B C D F G}
+impl_tuple!{A B C D F G H}
+impl_tuple!{A B C D F G H I}
+impl_tuple!{A B C D F G H I J}
+impl_tuple!{A B C D F G H I J K}
 
-impl<A:Render, B:Render> Render for (A, B) {
-    fn render<W:Write>(self, w:&mut W)->Result{
-        self.0.render(w)?;
-        self.1.render(w)
-    }
-}

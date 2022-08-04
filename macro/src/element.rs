@@ -80,6 +80,33 @@ impl ToTokens for Element{
                         let node = &nodes.list[0];
                         quote!{children:Some(#node)}
                     }else{
+                        /*
+                        let mut list = nodes.list.iter()
+                            .map(|item| quote!{#item});
+                        let first = list.next();
+
+                        println!("first: {:?}", first);
+                        */
+
+                        let mut group = vec![];
+                        let list:Vec<TokenStream> = nodes.list.iter()
+                                    .map(|item| quote!{#item})
+                                    .collect();
+                        //let count = 6;
+                        for chunk in list.chunks(10){
+                            group.push(quote!{ ( #(#chunk),* ) } );
+                            if group.len() == 10{
+                                let combined = quote!{ ( #(#group),* ) };
+                                group = vec![];
+                                group.push(combined);
+                            }
+                        }
+
+                        //println!("\n =======> group: {:?}", group);
+                        
+                        let children = quote!{(#(#group),*)};
+
+                        /*
                         let mut list = nodes.list.iter()
                             .map(|item| quote!{#item});
                         let first = list.next();
@@ -89,6 +116,7 @@ impl ToTokens for Element{
                             |last, item| quote!{(#last, #item)}
                         );
                         //println!("children: {:?}", children);
+                        */
                         quote!{children:Some(#children)}
                     }
                 }

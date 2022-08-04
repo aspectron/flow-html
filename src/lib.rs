@@ -42,6 +42,10 @@ mod test{
                 {"hello"} {world} {num} {num} {num} {string} {true}
                 {1.2 as f64}
                 <h1>{"hello 123"} {num}</h1>
+                {"10"}
+                {11}
+                {12} {13} {14}
+                <h3>{"single child"}</h3>
             </div>
         };
         
