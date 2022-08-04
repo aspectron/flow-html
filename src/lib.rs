@@ -1,5 +1,5 @@
 pub mod render;
-pub use flow_html_macro::html;
+pub use flow_html_macro::{html, renderable};
 pub use render::{Render, Result, Write};
 use std::collections::BTreeMap;
 
@@ -14,6 +14,18 @@ pub struct Element<'a, T:Render>{
     pub tag:&'a str,
     pub attributes:BTreeMap<&'a str, AttributeValue<'a>>,
     pub children:Option<T>
+}
+
+pub trait ElementDefaults {
+    fn _get_attributes(&self)->String;
+    fn _get_children(&self)->String;
+
+    fn get_attributes(&self)->String{
+        self._get_attributes()
+    }
+    fn get_children(&self)->String{
+        self._get_children()
+    }
 }
 
 impl<T:Render> Render for Element<'_, T>{
@@ -45,6 +57,8 @@ mod test{
     use crate::html;
     use crate as flow_html;
     use crate::Render;
+    use crate::renderable;
+    use crate::ElementDefaults;
     #[test]
     pub fn tree_html(){
         
@@ -56,8 +70,25 @@ mod test{
         let active = true;
         let disabled = false;
 
+        #[renderable(flow-select)]
+        #[allow(unused_variables)]
+        struct FlowSelect<'a>{
+            #[attr(name="a-b-c", xyz=1, xxx=true, ddd)]
+            active:bool,
+            selected:&'a str
+        }
+
+        impl<'a> FlowSelect<'a>{
+            fn get_attributes(&self)->String{
+                format!("class=\"xxxxxxx\" active")
+            }
+            fn get_children(&self)->String{
+                format!("<flow-menu-item value=\"sss\">xyz</flow-menu-item>")
+            }
+        }
+
         let tree = html!{
-            <div class={"abc"} ?active ?disabled user data-user-name={"test-node"} &string2>
+            <div class={"abc"} ?active ?disabled ?active2={false} user data-user-name={"test-node"} &string2>
                 {123} {"hello"} {world} {num} {num} {num} {string} {true}
                 {1.2 as f64}
                 <h1>{"hello 123"} {num}</h1>
@@ -65,6 +96,7 @@ mod test{
                 {11}
                 {12} {13} {14}
                 <h3>{"single child"}</h3>
+                <FlowSelect active selected={"123"} />
             </div>
         };
         
@@ -78,7 +110,7 @@ mod test{
         */
         
 
-        println!("result: {:?}", tree);
-        println!("tree.render: {}", tree.html());
+        println!("tree: {:?}", tree);
+        println!("tree.html: {}", tree.html());
     }
 }

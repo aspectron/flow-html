@@ -44,7 +44,11 @@ impl ToTokens for Element{
         //let mut properties:Vec<TokenStream> = vec![];
         let el = if self.is_custom_element(){
             let name = &self.tag.name;
-            quote!(#name {})
+            let properties = self.tag.attributes.to_properties();
+            //println!("properties: {:?}", properties);
+            quote!(#name {
+                #(#properties),*
+            })
         }else{
             let attributes = self.tag.attributes.to_token_stream();
 

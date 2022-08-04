@@ -9,7 +9,7 @@ authors = ["Flow Developers"]
 proc-macro = true
 
 [dependencies]
-syn = {version = "*", features = ["full"]}
+syn = {version = "*", features = ["full", "extra-traits"]}
 quote = "*"
 proc-macro2="*"
 proc-macro-error = { version = "1", default-features = false }

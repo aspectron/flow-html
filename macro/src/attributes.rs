@@ -1,17 +1,45 @@
-use proc_macro2::{TokenStream, TokenTree, Ident};
+use proc_macro2::{TokenStream, Ident};
 use quote::{quote, ToTokens};
-use syn::{Block, Token, Result, punctuated::Punctuated};
-use syn::parse::{Parse, ParseStream};
-//use proc_macro_error::abort;
-use syn::ext::IdentExt;
+use syn::{
+    Block,
+    Token,
+    Result,
+    punctuated::Punctuated,
+    parse::{Parse, ParseStream},
+    ext::IdentExt
+};
 
-pub type AttributeName = Punctuated<Ident, syn::Token![-]>;
+pub type AttributeName = Punctuated<Ident, Token![-]>;
+
+pub trait AttributeNameString {
+    fn to_string(&self)->String;
+}
+
+impl AttributeNameString for AttributeName{
+    fn to_string(&self)->String{
+        let mut items = self.iter()
+            .map(|a| a.to_string());
+        let first = items.next().unwrap();
+        items.fold(first, |a, b|format!("{}-{}", a, b))
+    }
+}
 
 pub struct Attributes{
     list:Vec<Attribute>
 }
 
 impl Attributes{
+    pub fn to_properties(&self)->Vec<TokenStream>{
+        let mut properties = vec![];
+        for attr in &self.list{
+            let name = &attr.name;
+            let value = attr.get_value();
+            properties.push(quote!(
+                #name:#value
+            ));
+        }
+        properties
+    }
     pub fn to_token_stream(&self)->TokenStream{
         let mut attrs = vec![];
         for attr in &self.list{
@@ -28,23 +56,6 @@ impl Attributes{
                     quote!{flow_html::AttributeValue::Str(&#value)}
                 }
             };
-            /*
-            let v = value.clone().into_iter().next().unwrap();
-            match &v{
-                TokenTree::Ident(a)=>{
-                    println!("\n###### Ident: {:?}", a);
-                }
-                TokenTree::Group(a)=>{
-                    println!("\n###### Group: {:?}", a);
-                }
-                TokenTree::Punct(a)=>{
-                    println!("\n###### Punct: {:?}", a);
-                }
-                TokenTree::Literal(a)=>{
-                    println!("\n###### Literal: {:?}", a);
-                }
-            }
-            */
 
             attrs.push(quote!(
                 map.insert(#name, #value);
@@ -117,7 +128,7 @@ impl Parse for Attribute{
 
 pub fn parse_attributes(input: ParseStream)->Result<Attributes>{
     let mut list = vec![];
-    print!("parse_attributes: {:?}", input);
+    //print!("parse_attributes: {:?}", input);
     while !(input.peek(Token![/]) || input.peek(Token![>])){
         let attribute = input.parse::<Attribute>()?;
         list.push(attribute);

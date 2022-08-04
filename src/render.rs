@@ -1,14 +1,22 @@
 pub use std::fmt::{Result, Write};
 
+/*
+pub trait RenderBase:Sized{
+    fn render_html<W:Write>(self, _w:&mut W)->Result;
+}
+*/
 pub trait Render:Sized{
     fn html(self)->String{
         let mut buf = String::from("");
         self.render(&mut buf).unwrap();
         buf
     }
-    fn render<W:Write>(self, _w:&mut W)->Result;
+    fn render<W:Write>(self, w:&mut W)->Result;
 }
 
+
+//impl Render for () {}
+//impl Render for &str {}
 impl Render for () {
     fn render<W:Write>(self, _w:&mut W)->Result{
         Ok(())
@@ -23,6 +31,7 @@ impl Render for &str {
 
 macro_rules! impl_tuple {
     ($($ident:ident)+) => {
+        //impl<$($ident: Render,)+> Render for ($($ident,)+) {}
         impl<$($ident: Render,)+> Render for ($($ident,)+) {
             #[inline]
             #[allow(non_snake_case)]
@@ -38,6 +47,7 @@ macro_rules! impl_tuple {
 macro_rules! impl_types {
     ($($ident:ident)+) => {
         $(
+            //impl Render for $ident {}
             impl Render for $ident {
                 fn render<W:Write>(self, w:&mut W)->Result{
                     write!(w, "{}", self)
