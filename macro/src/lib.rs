@@ -10,7 +10,7 @@ use quote::quote;
 mod element;
 //mod state;
 mod attributes;
-use element::Element;
+use element::Nodes;
 //use state::set_attributes;
 use attributes::{AttributeName, AttributeNameString};
 use proc_macro_error::proc_macro_error;
@@ -19,9 +19,9 @@ use proc_macro_error::proc_macro_error;
 #[proc_macro]
 #[proc_macro_error]
 pub fn html(input: TokenStream) -> TokenStream {
-    let element =  parse_macro_input!(input as Element);
-    let ts = quote!{#element};
-    println!("\n===========> Element Object tree <===========\n{}\n", ts.to_string());
+    let nodes =  parse_macro_input!(input as Nodes);
+    let ts = quote!{#nodes};
+    //println!("\n===========> Nodes Object tree <===========\n{}\n", ts.to_string());
     ts.into()
 }
 
@@ -228,6 +228,6 @@ pub fn renderable(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
         }
     );
-    println!("###### render:ts: {}", ts.to_string());
+    //println!("\n===========> element ts: <===========\n{}", ts);
     ts.into()
 } 

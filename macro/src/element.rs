@@ -1,5 +1,5 @@
 //use std::sync::Arc;
-use proc_macro2::{TokenStream, Ident};
+use proc_macro2::{TokenStream, Ident, Span};
 use quote::{quote, ToTokens};
 use syn::{Block, Token, Result};
 use syn::parse::{Parse, ParseStream};
@@ -14,6 +14,7 @@ pub struct Element{
 
 impl Parse for Element{
     fn parse(input: ParseStream) -> Result<Self> {
+        //println!("================== start: Element parsing #######################");
         let span = input.span();
         let tag = input.parse::<OpeningTag>()?;
         
@@ -28,7 +29,9 @@ impl Parse for Element{
                 abort!(span, format!("Closing tag is missing for '{}'", tag.name));
             }
         }
-
+        //println!("=================== end: Element parsing ########################");
+        //println!("after Element parse, input: {}", input);
+        
         Ok(Element{
             tag,
             children
@@ -45,26 +48,8 @@ impl Element{
     fn children_stream(&self)->TokenStream{
         match &self.children{
             Some(nodes)=>{
-                if nodes.list.len() == 1{
-                    let node = &nodes.list[0];
-                    quote!{children:Some(#node)}
-                }else{
-                    let mut group = vec![];
-                    let list:Vec<TokenStream> = nodes.list.iter()
-                            .map(|item| quote!{#item})
-                            .collect();
-                    for chunk in list.chunks(10){
-                        group.push(quote!{ ( #(#chunk),* ) } );
-                        if group.len() == 10{
-                            let combined = quote!{ ( #(#group),* ) };
-                            group = vec![];
-                            group.push(combined);
-                        }
-                    }
-                    
-                    let children = quote!{(#(#group),*)};
-                    quote!{children:Some(#children)}
-                }
+                let children = nodes.get_tuples();
+                quote!(children:Some(#children))
             }
             None=>{
                 quote!(children:Option::<()>::None)
@@ -95,8 +80,10 @@ impl ToTokens for Element{
         }else{
             let attributes = self.tag.attributes.to_token_stream();
             let tag = self.tag.name.to_string();
+            let is_fragment = tag.eq("x");
             quote!{
                 flow_html::Element {
+                    is_fragment:#is_fragment,
                     tag:#tag,
                     #attributes,
                     #children
@@ -113,18 +100,28 @@ pub struct OpeningTag{
     pub self_closing:bool,
     pub attributes:Attributes
 }
-
+fn get_fragment_ident()->Ident{
+    Ident::new("x", Span::call_site())
+}
 impl Parse for OpeningTag{
     fn parse(input: ParseStream) -> Result<Self> {
-        input.parse::<Token![<]>()?;
-        let name = input.parse::<Ident>()?;
-        let attributes = parse_attributes(input)?;
-
         let mut self_closing = false;
-        if input.peek(Token![/]){
-            input.parse::<Token![/]>()?;
-            self_closing = true;
+        let name;
+        let attributes;
+        input.parse::<Token![<]>()?;
+        if input.peek(Token![>]){
+            name = get_fragment_ident();
+            attributes = Attributes::empty()
+        }else{
+            name = input.parse::<Ident>()?;
+            attributes = parse_attributes(input)?;
+            if input.peek(Token![/]){
+                input.parse::<Token![/]>()?;
+                self_closing = true;
+            }
         }
+
+        
         input.parse::<Token![>]>()?;
         Ok(Self{
             name,
@@ -142,7 +139,12 @@ impl Parse for ClosingTag{
     fn parse(input: ParseStream) -> Result<Self> {
         input.parse::<Token![<]>()?;
         input.parse::<Token![/]>()?;
-        let name = input.parse::<Ident>()?;
+        let name;
+        if input.peek(Token![>]){
+            name = get_fragment_ident();
+        }else{
+            name = input.parse::<Ident>()?;
+        }
         input.parse::<Token![>]>()?;
         Ok(Self{
             name
@@ -154,19 +156,50 @@ pub struct Nodes{
     list:Vec<Node>
 }
 
+impl Nodes{
+    pub fn get_tuples(&self)->TokenStream{
+        if self.list.len() == 1{
+            let node = &self.list[0];
+            quote!{#node}
+        }else{
+            let mut group = vec![];
+            let list:Vec<TokenStream> = self.list.iter()
+                    .map(|item| quote!{#item})
+                    .collect();
+            for chunk in list.chunks(10){
+                group.push(quote!{ ( #(#chunk),* ) } );
+                if group.len() == 10{
+                    let combined = quote!{ ( #(#group),* ) };
+                    group = vec![];
+                    group.push(combined);
+                }
+            }
+            
+            let children = quote!{(#(#group),*)};
+            quote!{#children}
+        }
+    }
+}
+
 impl Parse for Nodes{
     fn parse(input: ParseStream) -> Result<Self> {
         let mut list:Vec<Node> = vec![];
-        while !input.peek(Token![<]) || !input.peek2(Token![/]){
+        //println!("================== start: Nodes parsing ==================");
+        while !input.is_empty() && (!input.peek(Token![<]) || !input.peek2(Token![/])){
             let node = input.parse::<Node>()?;
             list.push(node);
         }
-
-        //println!("input: {:?}", input);
+        //println!("==================== end: Nodes parsing ==================");
+        //println!("after nodes parse, input: {:?}", input);
 
         Ok(Nodes{
             list
         })
+    }
+}
+impl ToTokens for Nodes{
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.get_tuples().to_tokens(tokens);
     }
 }
 

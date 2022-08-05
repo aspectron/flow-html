@@ -39,6 +39,9 @@ impl Attributes{
         list
     }
     */
+    pub fn empty()->Self{
+        Self{list:vec![]}
+    }
     pub fn to_properties(&self/*, names:Arc<Vec<String>>*/)->Vec<TokenStream>{
         let mut properties = vec![];
         //let mut used = vec![];
