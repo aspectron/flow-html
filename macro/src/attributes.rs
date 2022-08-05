@@ -1,4 +1,4 @@
-use proc_macro2::{TokenStream, Ident};
+use proc_macro2::{TokenStream, Ident, Span};
 use quote::{quote, ToTokens};
 use syn::{
     Block,
@@ -8,6 +8,7 @@ use syn::{
     parse::{Parse, ParseStream},
     ext::IdentExt
 };
+use std::sync::Arc;
 
 pub type AttributeName = Punctuated<Ident, Token![-]>;
 
@@ -29,8 +30,18 @@ pub struct Attributes{
 }
 
 impl Attributes{
-    pub fn to_properties(&self)->Vec<TokenStream>{
+    /*
+    pub fn get_names(&self)->Vec<String>{
+        let mut list = vec![];
+        for attr in &self.list{
+            list.push(attr.get_name())
+        }
+        list
+    }
+    */
+    pub fn to_properties(&self, names:Arc<Vec<String>>)->Vec<TokenStream>{
         let mut properties = vec![];
+        let mut used = vec![];
         for attr in &self.list{
             let name = &attr.name;
             let value = match attr.attr_type{
@@ -51,9 +62,19 @@ impl Attributes{
                     }
                 }
             };
+            used.push(name.to_string());
             properties.push(quote!(
                 #name #value
-            ));          
+            ));
+        }
+        println!("used: {:?} , names:{:?}", used, names);
+        for name in names.iter(){
+            if !used.contains(name){
+                let name_ident = Ident::new(name, Span::call_site());
+                properties.push(quote!(
+                    #name_ident: None
+                ));
+            }
         }
         properties
     }

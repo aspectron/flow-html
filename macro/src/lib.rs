@@ -9,7 +9,7 @@ use syn::{
 use quote::quote;
 mod element;
 mod attributes;
-use element::Element;
+use element::{Element,set_attributes};
 use attributes::{AttributeName, AttributeNameString};
 use proc_macro_error::proc_macro_error;
 
@@ -62,6 +62,8 @@ pub fn renderable(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut field_ident_vec = vec![];
     let mut field_type_vec = vec![];
     let mut attrs_ts_vec = vec![];
+    let mut field_names:Vec<String> = vec![];
+            
     //let mut children_field_ts = quote!();
     if let syn::Data::Struct(syn::DataStruct {
         fields: syn::Fields::Named(ref fields),
@@ -79,6 +81,7 @@ pub fn renderable(attr: TokenStream, item: TokenStream) -> TokenStream {
                 //has_children_field = true;
                 continue;
             }
+            field_names.push(attr_name.clone());
             //let name: String = field_name.to_string();
             //println!("\n\n----->name: {}, \ntype: {:?}, \nattrs: {:?}", field_name, field.ty, field.attrs);
             //println!("\n\n----->name: {}, \ntype: {:?}", field_name, field.ty);
@@ -163,9 +166,23 @@ pub fn renderable(attr: TokenStream, item: TokenStream) -> TokenStream {
                 if field_type.eq("String"){
                     borrow = quote!(&);
                 }
-                attrs_ts_vec.push(quote!(
-                    attrs.push(format!(#fmt_str, flow_html::escape_attr(#borrow self.#field_name)));
-                ));
+                if field_type.eq("Option"){
+                    attrs_ts_vec.push(quote!(
+                        match &self.#field_name{
+                            Some(value)=>{
+                                attrs.push(format!(#fmt_str, flow_html::escape_attr(value)));
+                            }
+                            None=>{
+
+                            }
+                        }
+                    ));
+                }else{
+                    attrs_ts_vec.push(quote!(
+                        attrs.push(format!(#fmt_str, flow_html::escape_attr(#borrow self.#field_name)));
+                    ));
+                }
+                
             }
             
         }
@@ -176,6 +193,7 @@ pub fn renderable(attr: TokenStream, item: TokenStream) -> TokenStream {
         //}
     }
 
+    set_attributes(struct_name.to_string(), field_names);
     let ts = quote!(
         #[derive(Debug)]
         pub struct #struct_name #struct_params #where_clause {

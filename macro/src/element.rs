@@ -1,10 +1,50 @@
+use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
 use proc_macro2::{TokenStream, Ident};
 use quote::{quote, ToTokens};
 use syn::{Block, Token, Result};
 use syn::parse::{Parse, ParseStream};
 use proc_macro_error::abort;
 use crate::attributes::{Attributes, parse_attributes};
+use lazy_static::lazy_static;
 
+//static mut ATTRIBUTES:Option<Arc<BTreeMap<String, Arc<Vec<Attr>>>>> = None;
+
+fn get_attributes_storage()->Arc<Mutex<BTreeMap<String, Arc<Vec<String>>>>>{
+    /*
+    let map = unsafe {
+        match &ATTRIBUTES{
+            Some(arc_map) => {
+                arc_map.clone()
+            }
+            None=>{
+                let arc_map = Arc::new(BTreeMap::new());
+                let clone = arc_map.clone();
+                ATTRIBUTES = Some(arc_map);
+                clone
+            }
+        }
+    };
+    */
+    lazy_static! {
+        static ref MAP: Arc<Mutex<BTreeMap<String, Arc<Vec<String>>>>> = Arc::new(Mutex::new(BTreeMap::new()));
+    }
+
+    MAP.clone()
+}
+pub fn get_attributes(name:String)->Option<Arc<Vec<String>>>{
+    let m = get_attributes_storage();
+    let map = m.lock().unwrap();
+    match map.get(&name){
+        Some(list)=>Some(list.clone()),
+        None=>None
+    }
+}
+pub fn set_attributes(name:String, attr:Vec<String>){
+    let m = get_attributes_storage();
+    let mut map = m.lock().unwrap();
+    map.insert(name, Arc::new(attr));
+}
 pub struct Element{
     pub tag:OpeningTag,
     pub children:Option<Nodes>
@@ -77,7 +117,11 @@ impl ToTokens for Element{
         let children = self.children_stream();
         let el = if self.is_custom_element(){
             let name = &self.tag.name;
-            let mut properties = self.tag.attributes.to_properties();
+            let names = match get_attributes(name.to_string()){
+                Some(names)=>names,
+                None=>Arc::new(vec![])
+            };
+            let mut properties = self.tag.attributes.to_properties(names);
             //println!("properties: {:?}", properties);
             properties.push(children);
             quote!(#name {

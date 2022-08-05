@@ -41,7 +41,7 @@ impl<T:Render> Render for Element<'_, T>{
                     }
                 }
                 AttributeValue::Str(v)=>{
-                    write!(w, " {}=\"{}\"", key, escape_attr(*v))?;
+                    write!(w, " {}=\"{}\"", key, (*v))?;
                 }
             }
         }
@@ -82,7 +82,8 @@ mod test{
             pub active:bool,
             pub selected:&'a str,
             pub name:String,
-            pub children:Option<R>
+            pub children:Option<R>,
+            pub label:Option<String>
         }
         #[renderable(flow-menu-item)]
         struct FlowMenuItem<'a, R:Render>{
@@ -90,6 +91,7 @@ mod test{
             pub value:&'a str,
             pub children:Option<R>
         }
+
 
         //overries
         /*
@@ -103,8 +105,14 @@ mod test{
             }
         }
         */
-        let name = "abc".to_string();
+        //let name = "abc".to_string();
         let selected = "1".to_string();
+        let _tree = html!{
+            <div class={"xyz"}>
+            </div>
+        };
+        let name2 = "aaa".to_string();
+        let name3 = "bbb".to_string();
         let tree = html!{
             <div class={"abc"} ?active ?disabled ?active2={false} user data-user-name={"test-node"} &string2>
                 {123} {"hello"} {world} {num} {num} {num} {string} {true}
@@ -114,9 +122,9 @@ mod test{
                 {11}
                 {12} {13} {14}
                 <h3>{"single child"}</h3>
-                <FlowSelect active name={name.clone()} selected={"<1&2>\"3"} />
+                <FlowSelect active name={name2} selected={"<1&2>\"3"} />
                 <div class={"abc"}></div>
-                <FlowSelect active name &selected>
+                <FlowSelect active name={name3} &selected>
                     <flow text={"abc"} />
                     <FlowMenuItem text={"abc"} value={"abc"} />
                 </FlowSelect>
