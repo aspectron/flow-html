@@ -8,8 +8,10 @@ use syn::{
 };
 use quote::quote;
 mod element;
+//mod state;
 mod attributes;
-use element::{Element,set_attributes};
+use element::Element;
+//use state::set_attributes;
 use attributes::{AttributeName, AttributeNameString};
 use proc_macro_error::proc_macro_error;
 
@@ -193,9 +195,9 @@ pub fn renderable(attr: TokenStream, item: TokenStream) -> TokenStream {
         //}
     }
 
-    set_attributes(struct_name.to_string(), field_names);
+    //set_attributes(struct_name.to_string(), field_names);
     let ts = quote!(
-        #[derive(Debug)]
+        #[derive(Debug, Default)]
         pub struct #struct_name #struct_params #where_clause {
             #( #field_visibility_vec #field_ident_vec : #field_type_vec ),*,
             //#children_field_ts

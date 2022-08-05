@@ -11,7 +11,7 @@ pub enum AttributeValue<'a>{
     Str(&'a str)
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Element<'a, T:Render>{
     pub tag:&'a str,
     pub attributes:BTreeMap<&'a str, AttributeValue<'a>>,
