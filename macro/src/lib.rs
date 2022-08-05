@@ -18,8 +18,9 @@ use proc_macro_error::proc_macro_error;
 #[proc_macro_error]
 pub fn html(input: TokenStream) -> TokenStream {
     let element =  parse_macro_input!(input as Element);
-    println!("\n====>html element: {}", quote!{#element}.to_string());
-    quote!{#element}.into()
+    let ts = quote!{#element};
+    println!("\n===========> Element Object tree <===========\n{}\n", ts.to_string());
+    ts.into()
 }
 
 struct RenderableAttributes {
@@ -47,36 +48,45 @@ pub fn renderable(attr: TokenStream, item: TokenStream) -> TokenStream {
     let ast = parse_macro_input!(item as DeriveInput);
     let struct_name = &ast.ident;
     let struct_params = &ast.generics;
-    let generics_only = ast.generics.clone();
+    let (impl_generics, type_generics, where_clause) = &ast.generics.split_for_impl();
+    /*let generics_only = ast.generics.clone();
     let where_clause = match generics_only.where_clause.clone() {
         Some(where_clause) => quote!{ #where_clause },
         None => quote!{}
     };
+    */
+
+    //println!("struct_params: {:#?}", struct_params);
 
     let mut field_visibility_vec = vec![];
     let mut field_ident_vec = vec![];
     let mut field_type_vec = vec![];
     let mut attrs_ts_vec = vec![];
-
+    //let mut children_field_ts = quote!();
     if let syn::Data::Struct(syn::DataStruct {
         fields: syn::Fields::Named(ref fields),
         ..
     }) = ast.data
     {
+        //let mut has_children_field = false;
         for field in fields.named.iter() {
             let field_name: syn::Ident = field.ident.as_ref().unwrap().clone();
             field_ident_vec.push(&field.ident);
             field_visibility_vec.push(&field.vis);
             field_type_vec.push(&field.ty);
+            let mut attr_name = field_name.to_string();
+            if attr_name.eq("children"){
+                //has_children_field = true;
+                continue;
+            }
             //let name: String = field_name.to_string();
             //println!("\n\n----->name: {}, \ntype: {:?}, \nattrs: {:?}", field_name, field.ty, field.attrs);
             //println!("\n\n----->name: {}, \ntype: {:?}", field_name, field.ty);
             let mut attrs:Vec<_> = field.attrs.iter().collect();
-            let mut attr_name = field_name.to_string();
+            
             if attrs.len()>0{
                 let attr  = attrs.remove(0);
                 let meta = attr.parse_meta().unwrap();
-                
                 match meta{
                     Meta::List(list)=>{
                         //println!("meta-list: {:#?}", list);
@@ -159,30 +169,42 @@ pub fn renderable(attr: TokenStream, item: TokenStream) -> TokenStream {
             }
             
         }
+        //if !has_children_field{
+        //    children_field_ts = quote!(
+                //children:Option<R>
+        //    );
+        //}
     }
 
     let ts = quote!(
         #[derive(Debug)]
         pub struct #struct_name #struct_params #where_clause {
-            #( #field_visibility_vec #field_ident_vec : #field_type_vec ),*
+            #( #field_visibility_vec #field_ident_vec : #field_type_vec ),*,
+            //#children_field_ts
         }
 
-        impl #struct_params flow_html::Render for #struct_name #struct_params #where_clause {
-            fn render<W:core::fmt::Write>(self, w:&mut W)->core::fmt::Result{
-                let this = &self;
-                let attr = this.get_attributes();
-                let children = this.get_children();
+        impl #impl_generics flow_html::Render for #struct_name #type_generics #where_clause {
+            fn render<W:core::fmt::Write>(&self, w:&mut W)->core::fmt::Result{
+                let attr = self.get_attributes();
+                let children = self.get_children();
                 write!(w, #format_str, attr, children)
             }
         }
-        impl #struct_params flow_html::ElementDefaults for #struct_name #struct_params #where_clause {
+        impl #impl_generics flow_html::ElementDefaults for #struct_name #type_generics #where_clause {
             fn _get_attributes(&self)->String{
                 let mut attrs:Vec<String> = vec![];
                 #(#attrs_ts_vec)*
                 attrs.join(" ")
             }
             fn _get_children(&self)->String{
-                "".to_string()
+                match &self.children{
+                    Some(children)=>{
+                        children.html()
+                    }
+                    None=>{
+                        "".to_string()
+                    }
+                }
             }
         }
     );

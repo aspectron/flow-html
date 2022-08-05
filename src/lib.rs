@@ -31,22 +31,22 @@ pub trait ElementDefaults {
 }
 
 impl<T:Render> Render for Element<'_, T>{
-    fn render<W:Write>(self, w:&mut W)->Result{
+    fn render<W:Write>(&self, w:&mut W)->Result{
         write!(w, "<{}", self.tag)?;
-        for (key, value) in self.attributes{
+        for (key, value) in &self.attributes{
             match value{
                 AttributeValue::Bool(v)=>{
-                    if v {
+                    if *v {
                         write!(w, " {}", key)?;
                     }
                 }
                 AttributeValue::Str(v)=>{
-                    write!(w, " {}=\"{}\"", key, escape_attr(v))?;
+                    write!(w, " {}=\"{}\"", key, escape_attr(*v))?;
                 }
             }
         }
         write!(w, ">")?;
-        if let Some(children) = self.children{
+        if let Some(children) = &self.children{
             children.render(w)?;
         }
         write!(w, "</{}>", self.tag)
@@ -77,14 +77,18 @@ mod test{
 
         #[renderable(flow-select)]
         #[allow(unused_variables)]
-        struct FlowSelect<'a>{
-            #[attr(name="is-active", xyz=1, xxx=true)]
+        struct FlowSelect<'a, R:Render>{
+            #[attr(name="is-active")]
             pub active:bool,
             pub selected:&'a str,
             pub name:String,
-            //pub label:Option<&'a str>,
-            //pub items:Vec<&'a str>,
-            //pub abc:Abc
+            pub children:Option<R>
+        }
+        #[renderable(flow-menu-item)]
+        struct FlowMenuItem<'a, R:Render>{
+            pub text:&'a str,
+            pub value:&'a str,
+            pub children:Option<R>
         }
 
         //overries
@@ -109,10 +113,17 @@ mod test{
                 {11}
                 {12} {13} {14}
                 <h3>{"single child"}</h3>
-                <FlowSelect active name selected={"<1&2>\"3"} />
+                <FlowSelect active name={name.clone()} selected={"<1&2>\"3"} />
+                <div class={"abc"}></div>
+                <FlowSelect active name selected={"<1&2>\"3"}>
+                    <flow text={"abc"} />
+                    <FlowMenuItem text={"abc"} value={"abc"} />
+                </FlowSelect>
             </div>
         };
-        
+        /*<FlowSelect active name selected={"<1&2>\"3"}>
+                    <FlowMenuItem text={"abc"} />
+                </FlowSelect>*/
         /*
         let result = flow_html::HtmlNode{
             attributes:
@@ -123,7 +134,7 @@ mod test{
         */
         
 
-        println!("tree: {:?}", tree);
+        println!("tree: {:#?}", tree);
         println!("tree.html: {}", tree.html());
     }
 }

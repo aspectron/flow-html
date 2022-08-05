@@ -17,7 +17,10 @@ impl Parse for Element{
         
         let mut children = None;
         if !tag.self_closing{
-            children = Some(input.parse::<Nodes>()?);
+            let nodes = input.parse::<Nodes>()?;
+            if nodes.list.len() > 0{
+                children = Some(nodes);
+            }
             let closing_tag = input.parse::<ClosingTag>()?;
             if closing_tag.name != tag.name{
                 abort!(span, format!("Closing tag is missing for '{}'", tag.name));
@@ -37,48 +40,51 @@ impl Element{
         let first = name.get(0..1).unwrap();
         first.to_uppercase() == first
     }
+    fn children_stream(&self)->TokenStream{
+        match &self.children{
+            Some(nodes)=>{
+                if nodes.list.len() == 1{
+                    let node = &nodes.list[0];
+                    quote!{children:Some(#node)}
+                }else{
+                    let mut group = vec![];
+                    let list:Vec<TokenStream> = nodes.list.iter()
+                            .map(|item| quote!{#item})
+                            .collect();
+                    for chunk in list.chunks(10){
+                        group.push(quote!{ ( #(#chunk),* ) } );
+                        if group.len() == 10{
+                            let combined = quote!{ ( #(#group),* ) };
+                            group = vec![];
+                            group.push(combined);
+                        }
+                    }
+                    
+                    let children = quote!{(#(#group),*)};
+                    quote!{children:Some(#children)}
+                }
+            }
+            None=>{
+                quote!(children:Option::<()>::None)
+            }
+        }
+    }
 }
 
 impl ToTokens for Element{
     fn to_tokens(&self, tokens: &mut TokenStream) {
         //let mut properties:Vec<TokenStream> = vec![];
+        let children = self.children_stream();
         let el = if self.is_custom_element(){
             let name = &self.tag.name;
-            let properties = self.tag.attributes.to_properties();
+            let mut properties = self.tag.attributes.to_properties();
             //println!("properties: {:?}", properties);
+            properties.push(children);
             quote!(#name {
                 #(#properties),*
             })
         }else{
             let attributes = self.tag.attributes.to_token_stream();
-
-            let children = match &self.children{
-                Some(nodes)=>{
-                    if nodes.list.len() == 1{
-                        let node = &nodes.list[0];
-                        quote!{children:Some(#node)}
-                    }else{
-                        let mut group = vec![];
-                        let list:Vec<TokenStream> = nodes.list.iter()
-                                .map(|item| quote!{#item})
-                                .collect();
-                        for chunk in list.chunks(10){
-                            group.push(quote!{ ( #(#chunk),* ) } );
-                            if group.len() == 10{
-                                let combined = quote!{ ( #(#group),* ) };
-                                group = vec![];
-                                group.push(combined);
-                            }
-                        }
-                        
-                        let children = quote!{(#(#group),*)};
-                        quote!{children:Some(#children)}
-                    }
-                }
-                None=>{
-                    quote!(children:Option::<Vec<()>>::None)
-                }
-            };
             let tag = self.tag.name.to_string();
             quote!{
                 flow_html::Element {
