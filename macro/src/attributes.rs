@@ -33,10 +33,16 @@ impl Attributes{
         let mut properties = vec![];
         for attr in &self.list{
             let name = &attr.name;
-            let value = attr.get_value();
-            properties.push(quote!(
-                #name:#value
-            ));
+            if attr.value.is_some(){
+                let value = attr.get_value();
+                properties.push(quote!(
+                    #name:#value
+                ));
+            }else{
+                properties.push(quote!(
+                    #name
+                ));
+            }
         }
         properties
     }

@@ -7,3 +7,5 @@ authors = ["Flow Developers"]
 
 [dependencies]
 flow-html-macro={path="./macro"}
+lazy_static="*"
+regex = "1"

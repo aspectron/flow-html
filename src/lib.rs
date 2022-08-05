@@ -1,6 +1,8 @@
 pub mod render;
+pub mod escape;
 pub use flow_html_macro::{html, renderable};
 pub use render::{Render, Result, Write};
+pub use escape::{escape_attr, escape_html};
 use std::collections::BTreeMap;
 
 #[derive(Debug)]
@@ -39,7 +41,7 @@ impl<T:Render> Render for Element<'_, T>{
                     }
                 }
                 AttributeValue::Str(v)=>{
-                    write!(w, " {}=\"{}\"", key, v)?;
+                    write!(w, " {}=\"{}\"", key, escape_attr(v))?;
                 }
             }
         }
@@ -70,15 +72,25 @@ mod test{
         let active = true;
         let disabled = false;
 
+        #[derive(Debug)]
+        struct Abc{}
+
         #[renderable(flow-select)]
         #[allow(unused_variables)]
         struct FlowSelect<'a>{
-            #[attr(name="a-b-c", xyz=1, xxx=true, ddd)]
-            active:bool,
-            selected:&'a str
+            #[attr(name="is-active", xyz=1, xxx=true)]
+            pub active:bool,
+            pub selected:&'a str,
+            pub name:String,
+            //pub label:Option<&'a str>,
+            //pub items:Vec<&'a str>,
+            //pub abc:Abc
         }
 
+        //overries
+        /*
         impl<'a> FlowSelect<'a>{
+            
             fn get_attributes(&self)->String{
                 format!("class=\"xxxxxxx\" active")
             }
@@ -86,7 +98,8 @@ mod test{
                 format!("<flow-menu-item value=\"sss\">xyz</flow-menu-item>")
             }
         }
-
+        */
+        let name = "abc".to_string();
         let tree = html!{
             <div class={"abc"} ?active ?disabled ?active2={false} user data-user-name={"test-node"} &string2>
                 {123} {"hello"} {world} {num} {num} {num} {string} {true}
@@ -96,7 +109,7 @@ mod test{
                 {11}
                 {12} {13} {14}
                 <h3>{"single child"}</h3>
-                <FlowSelect active selected={"123"} />
+                <FlowSelect active name selected={"<1&2>\"3"} />
             </div>
         };
         

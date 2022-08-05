@@ -56,19 +56,23 @@ pub fn renderable(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut field_visibility_vec = vec![];
     let mut field_ident_vec = vec![];
     let mut field_type_vec = vec![];
+    let mut attrs_ts_vec = vec![];
+
     if let syn::Data::Struct(syn::DataStruct {
         fields: syn::Fields::Named(ref fields),
         ..
     }) = ast.data
     {
         for field in fields.named.iter() {
-            //let field_name: syn::Ident = field.ident.as_ref().unwrap().clone();
+            let field_name: syn::Ident = field.ident.as_ref().unwrap().clone();
             field_ident_vec.push(&field.ident);
             field_visibility_vec.push(&field.vis);
             field_type_vec.push(&field.ty);
             //let name: String = field_name.to_string();
-            //println!("\n\n----->name: {}, \ntype: {:?}, \nattrs: {:?}", name, field.ty, field.attrs);
+            //println!("\n\n----->name: {}, \ntype: {:?}, \nattrs: {:?}", field_name, field.ty, field.attrs);
+            //println!("\n\n----->name: {}, \ntype: {:?}", field_name, field.ty);
             let mut attrs:Vec<_> = field.attrs.iter().collect();
+            let mut attr_name = field_name.to_string();
             if attrs.len()>0{
                 let attr  = attrs.remove(0);
                 let meta = attr.parse_meta().unwrap();
@@ -88,7 +92,10 @@ pub fn renderable(attr: TokenStream, item: TokenStream) -> TokenStream {
                                         syn::Lit::Bool(v)=>v.value().to_string(),
                                         _=>"".to_string()
                                     };
-                                    println!("key: {}, value: {}", key, value);
+                                    //println!("key: {}, value: {}", key, value);
+                                    if key.eq("name"){
+                                        attr_name = value;
+                                    }
                                 }
                             }
                         }
@@ -99,6 +106,58 @@ pub fn renderable(attr: TokenStream, item: TokenStream) -> TokenStream {
                     }
                 }
             }
+            
+            let field_type = match &field.ty {
+                syn::Type::Path(a)=>{
+                    match a.path.get_ident(){
+                        Some(a)=>a.to_string(),
+                        None=>{
+                            if a.path.segments.len() > 0 {
+                                a.path.segments[0].ident.to_string()
+                            }else{
+                                "".to_string()
+                            }
+                        }
+                    }
+                }
+                syn::Type::Reference(a)=>{
+                    match a.elem.as_ref(){
+                        syn::Type::Path(a)=>{
+                            match a.path.get_ident(){
+                                Some(a)=>a.to_string(),
+                                None=>{
+                                    if a.path.segments.len() > 0 {
+                                        a.path.segments[0].ident.to_string()
+                                    }else{
+                                        "".to_string()
+                                    }
+                                }
+                            }
+                        }
+                        _=>"".to_string()
+                    }
+                }
+                _=>"".to_string()
+            };
+
+            if field_type.eq("bool"){
+                let fmt_str = format!("{}", attr_name);
+                attrs_ts_vec.push(quote!(
+                    if self.#field_name{
+                        attrs.push(#fmt_str.to_string());
+                    }
+                ));
+            }else{
+                let fmt_str = format!("{}=\"{{}}\"", attr_name);
+                let mut borrow = quote!();
+                if field_type.eq("String"){
+                    borrow = quote!(&);
+                }
+                attrs_ts_vec.push(quote!(
+                    attrs.push(format!(#fmt_str, flow_html::escape_attr(#borrow self.#field_name)));
+                ));
+            }
+            
         }
     }
 
@@ -118,7 +177,9 @@ pub fn renderable(attr: TokenStream, item: TokenStream) -> TokenStream {
         }
         impl #struct_params flow_html::ElementDefaults for #struct_name #struct_params #where_clause {
             fn _get_attributes(&self)->String{
-                format!("class=\"abc\"")
+                let mut attrs:Vec<String> = vec![];
+                #(#attrs_ts_vec)*
+                attrs.join(" ")
             }
             fn _get_children(&self)->String{
                 "".to_string()
