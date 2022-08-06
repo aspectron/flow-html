@@ -20,11 +20,17 @@ impl TagNameString for TagName{
     fn to_string(&self)->String{
         let mut items = self.iter()
             .map(|a| a.to_string());
+        if items.len() == 0{
+            return "".to_string();
+        }
         let first = items.next().unwrap();
         items.fold(first, |a, b|format!("{}-{}", a, b))
     }
     fn is_custom_element(&self)->bool{
         let name = self.to_string();
+        if name.len() == 0{
+            return false;
+        }
         let first = name.get(0..1).unwrap();
         first.to_uppercase() == first
     }
@@ -101,7 +107,7 @@ impl<'a> ToTokens for Element<'a>{
         }else{
             let attributes = self.tag.attributes.to_token_stream();
             let tag = self.tag.name.to_string();
-            let is_fragment = tag.eq("x");
+            let is_fragment = tag.len()==0;
             quote!{
                 flow_html::Element {
                     is_fragment:#is_fragment,
@@ -142,7 +148,6 @@ impl<'a> Parse for OpeningTag<'a>{
             }
         }
 
-        
         input.parse::<Token![>]>()?;
         Ok(Self{
             name,
@@ -182,7 +187,7 @@ impl Parse for ClosingTag{
                 }
             };
         }
-        if input.is_empty() || input.peek2(Token![>]){
+        if input.is_empty() || !input.peek(Token![>]){
             return Ok(Self{name:get_fragment_tag_name()});
         }
         input.parse::<Token![>]>()?;
