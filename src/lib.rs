@@ -75,14 +75,14 @@ mod test{
         self::print_hr("simple_html");
         let tree = html!{
             <p>
-                <div class={"xyz"}></div>
+                <div class="xyz abc active">"some inner html"</div>
                 <div class={"abc"}></div>
             </p>
         };
         let result = tree.html();
         println!("tag: {:#?}", tree.tag);
         println!("html: {}", result);
-        assert_eq!(result, "<p><div class=\"xyz\"></div><div class=\"abc\"></div></p>");
+        assert_eq!(result, "<p><div class=\"xyz abc active\">some inner html</div><div class=\"abc\"></div></p>");
     }
     #[test]
     pub fn custom_elements(){

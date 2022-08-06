@@ -1,4 +1,4 @@
-use proc_macro2::{TokenStream, Ident/*, Span*/};
+use proc_macro2::{TokenStream, Ident, Literal/*, Span*/};
 use quote::{quote, ToTokens};
 use syn::{
     Block,
@@ -25,11 +25,11 @@ impl AttributeNameString for AttributeName{
     }
 }
 
-pub struct Attributes{
-    list:Vec<Attribute>
+pub struct Attributes<'a>{
+    list:Vec<Attribute<'a>>
 }
 
-impl Attributes{
+impl<'a> Attributes<'a>{
     /*
     pub fn get_names(&self)->Vec<String>{
         let mut list = vec![];
@@ -115,19 +115,24 @@ impl Attributes{
 }
 
 
+pub enum AttributeValue<'a>{
+    Block(Block),
+    Literal(Literal),
+    _Str(&'a str)
+}
 pub enum AttributeType{
     Bool,
     Str,
     String
 }
-pub struct Attribute{
+pub struct Attribute<'a>{
     pub name: AttributeName,
     pub attr_type: AttributeType,
-    pub value: Option<Block>
+    pub value: Option<AttributeValue<'a>>
 }
 
-impl Attribute{
-    pub fn new(name:AttributeName, attr_type:AttributeType, value:Option<Block>)->Self{
+impl<'a> Attribute<'a>{
+    pub fn new(name:AttributeName, attr_type:AttributeType, value:Option<AttributeValue<'a>>)->Attribute<'a>{
         Self { name, attr_type, value }
     }
     pub fn get_name(&self)->String{
@@ -140,7 +145,18 @@ impl Attribute{
     pub fn get_value(&self)->TokenStream{
         match &self.value {
             Some(value)=>{
-                (&value.stmts[0]).into_token_stream()
+                match value {
+                    AttributeValue::Block(v)=>{
+                        (&v.stmts[0]).into_token_stream()
+                    }
+                    AttributeValue::Literal(v)=>{
+                        quote!(#v).into_token_stream()
+                    }
+                    AttributeValue::_Str(v)=>{
+                        quote!(#v).into_token_stream()
+                    }
+                }
+                
             }
             None => {
                 self.name.to_token_stream()
@@ -149,7 +165,7 @@ impl Attribute{
     }
 }
 
-impl Parse for Attribute{
+impl<'a> Parse for Attribute<'a>{
     fn parse(input: ParseStream) -> Result<Self> {
         let mut attr_type = AttributeType::Str;
         if input.peek(Token![?]){
@@ -162,14 +178,21 @@ impl Parse for Attribute{
         let name = AttributeName::parse_separated_nonempty_with(input, syn::Ident::parse_any)?;
         if input.peek(Token![=]){
             input.parse::<Token![=]>()?;
-            let value = input.parse::<Block>()?;
+            let value;
+            if input.peek(syn::token::Brace){
+                value = AttributeValue::Block(input.parse::<Block>()?);
+            }else{
+                //value = AttributeValue::Str("");
+                //println!("input: {:#?}", input);
+                value = AttributeValue::Literal(input.parse::<Literal>()?);
+            }
             return Ok(Attribute::new(name, attr_type, Some(value)));
         }
         Ok(Attribute::new(name, attr_type, None))
     }
 }
 
-pub fn parse_attributes(input: ParseStream)->Result<Attributes>{
+pub fn parse_attributes<'a>(input: ParseStream)->Result<Attributes<'a>>{
     let mut list = vec![];
     //print!("parse_attributes: {:?}", input);
     while !(input.peek(Token![/]) || input.peek(Token![>])){

@@ -1,5 +1,6 @@
 //use std::sync::Arc;
-use proc_macro2::{TokenStream, Ident};
+use proc_macro2::{TokenStream, Ident, Literal};
+//use proc_macro::TokenTree;
 use quote::{quote, ToTokens};
 use syn::ext::IdentExt;
 use syn::{Block, Token, Result, punctuated::Punctuated};
@@ -29,12 +30,12 @@ impl TagNameString for TagName{
     }
 }
 
-pub struct Element{
-    pub tag:OpeningTag,
-    pub children:Option<Nodes>
+pub struct Element<'a>{
+    pub tag:OpeningTag<'a>,
+    pub children:Option<Nodes<'a>>
 }
 
-impl Parse for Element{
+impl<'a> Parse for Element<'a>{
     fn parse(input: ParseStream) -> Result<Self> {
         //println!("================== start: Element parsing #######################");
         let span = input.span();
@@ -61,7 +62,7 @@ impl Parse for Element{
     }
 }
 
-impl Element{
+impl<'a> Element<'a>{
     fn is_custom_element(&self)->bool{
         self.tag.name.is_custom_element()
     }
@@ -78,7 +79,7 @@ impl Element{
     }
 }
 
-impl ToTokens for Element{
+impl<'a> ToTokens for Element<'a>{
     fn to_tokens(&self, tokens: &mut TokenStream) {
         //let mut properties:Vec<TokenStream> = vec![];
         let children = self.children_stream();
@@ -115,15 +116,15 @@ impl ToTokens for Element{
     }
 }
 
-pub struct OpeningTag{
+pub struct OpeningTag<'a>{
     pub name:TagName,
     pub self_closing:bool,
-    pub attributes:Attributes
+    pub attributes:Attributes<'a>
 }
 fn get_fragment_tag_name()->TagName{
     Punctuated::new()// Ident::new("x", Span::call_site())
 }
-impl Parse for OpeningTag{
+impl<'a> Parse for OpeningTag<'a>{
     fn parse(input: ParseStream) -> Result<Self> {
         let mut self_closing = false;
         let name;
@@ -191,11 +192,11 @@ impl Parse for ClosingTag{
     }
 }
 
-pub struct Nodes{
-    list:Vec<Node>
+pub struct Nodes<'a>{
+    list:Vec<Node<'a>>
 }
 
-impl Nodes{
+impl<'a> Nodes<'a>{
     pub fn get_tuples(&self)->TokenStream{
         if self.list.len() == 1{
             let node = &self.list[0];
@@ -220,7 +221,7 @@ impl Nodes{
     }
 }
 
-impl Parse for Nodes{
+impl<'a> Parse for Nodes<'a>{
     fn parse(input: ParseStream) -> Result<Self> {
         let mut list:Vec<Node> = vec![];
         //println!("================== start: Nodes parsing ==================");
@@ -236,32 +237,68 @@ impl Parse for Nodes{
         })
     }
 }
-impl ToTokens for Nodes{
+impl<'a> ToTokens for Nodes<'a>{
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.get_tuples().to_tokens(tokens);
     }
 }
 
-pub enum Node{
-    Element(Element),
-    Block(Block)
+pub enum Node<'a>{
+    Element(Element<'a>),
+    Block(Block),
+    //TokenStream(proc_macro2::TokenStream)
+    Literal(Literal)
 }
 
-impl Parse for Node{
+impl<'a> Parse for Node<'a>{
     fn parse(input: ParseStream) -> Result<Self> {
         let node = if input.peek(Token![<]){
             Node::Element(input.parse::<Element>()?)
-        }else{
+        }else if input.peek(syn::token::Brace){
             Node::Block(input.parse::<Block>()?)
+        }else{
+            
+            /*
+            let mut items:Vec<proc_macro2::TokenTree> = vec![];
+            input.step(|cursor|{
+                let mut rest = *cursor;
+                while let Some((tt, next)) = rest.token_tree() {
+                    if input.peek(syn::token::Brace){
+                        
+                    }
+                    match &tt {
+                        proc_macro2::TokenTree::Punct(a) if a.as_char() == '<' =>{
+                            println!("XXXXXXXXXXX");
+                            return Ok(((), rest));
+                        }
+                        proc_macro2::TokenTree::Group(_a)=>{
+                            items.push(tt);
+                            rest = next;
+                        }
+                        _ =>{
+                            items.push(tt);
+                            rest = next;
+                        }
+                    }
+                }
+                Ok(((), rest))
+            })?;
+            
+            Node::TokenStream(proc_macro2::TokenStream::from_iter(items))
+            */
+            Node::Literal(input.parse::<Literal>()?)
         };
 
         Ok(node)
     }
 }
-impl ToTokens for Node{
+impl<'a> ToTokens for Node<'a>{
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self{
             Node::Element(el)=>{
+                el.to_tokens(tokens);
+            }
+            Node::Literal(el)=>{
                 el.to_tokens(tokens);
             }
             Node::Block(block)=>{
