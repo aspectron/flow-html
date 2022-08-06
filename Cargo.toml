@@ -18,5 +18,6 @@ features = [
     'Window',
     'Document',
     'Element',
-    'Text'
+    'Text',
+    'HtmlCollection'
 ]

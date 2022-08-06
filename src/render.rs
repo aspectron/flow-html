@@ -13,10 +13,19 @@ pub trait Render:Sized{
         self.render(&mut buf).unwrap();
         buf
     }
-    fn render_tree(self)->ElementResult<BTreeMap<String, Element>>{
+    fn render_tree(self)->ElementResult<(Vec<Element>, BTreeMap<String, Element>)>{
         let mut parent = document().create_element("div").unwrap();
+        //parent.set_attribute("class", "temp-root")?;
         let map = self.render_tree_into(&mut parent)?;
-        Ok(map)
+        let mut list = vec![];
+        let children = parent.children();
+        let len = children.length();
+        for index in 0..len{
+            if let Some(child) = children.get_with_index(index){
+                list.push(child);
+            }
+        }
+        Ok((list, map))
     }
     fn render_tree_into(self, parent: &mut Element)->ElementResult<BTreeMap<String, Element>>{
         let mut map = BTreeMap::new();
