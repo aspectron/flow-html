@@ -35,7 +35,7 @@ pub trait ElementDefaults {
 }
 
 impl<T:Render> Render for Element<'_, T>{
-    fn render_node<'a>(&'a self, parent:&mut WebElement, map:&mut BTreeMap<&'a str, WebElement>)->ElementResult<()>{
+    fn render_node(self, parent:&mut WebElement, map:&mut BTreeMap<String, WebElement>)->ElementResult<()>{
         let mut el = document()
         .create_element(self.tag)?;
 
@@ -53,9 +53,9 @@ impl<T:Render> Render for Element<'_, T>{
         }
         if let Some((key, value)) = self.reff{
             el.set_attribute("data-ref", value)?;
-            map.insert(key, el.clone());
+            map.insert(key.to_string(), el.clone());
         }
-        if let Some(children) = &self.children{
+        if let Some(children) = self.children{
             children.render_node(&mut el, map)?;
         }
 

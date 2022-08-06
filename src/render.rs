@@ -13,13 +13,13 @@ pub trait Render:Sized{
         self.render(&mut buf).unwrap();
         buf
     }
-    fn render_tree<'a>(&'a self, parent:&mut Element)->ElementResult<BTreeMap<&'a str, Element>>{
+    fn render_tree(self, parent:&mut Element)->ElementResult<BTreeMap<String, Element>>{
         let mut map = BTreeMap::new();
         self.render_node(parent, &mut map)?;
         Ok(map)
     }
     
-    fn render_node<'a>(&'a self, _parent:&mut Element, _map:&mut BTreeMap<&'a str, Element>)->ElementResult<()>{
+    fn render_node(self, _parent:&mut Element, _map:&mut BTreeMap<String, Element>)->ElementResult<()>{
         Ok(())
     }
 
@@ -39,7 +39,7 @@ impl Render for &str {
     fn render<W:Write>(&self, w:&mut W)->Result{
         write!(w, "{}", self)
     }
-    fn render_node<'a>(&'a self, parent:&mut Element, _map:&mut BTreeMap<&'a str, Element>)->ElementResult<()>{
+    fn render_node(self, parent:&mut Element, _map:&mut BTreeMap<String, Element>)->ElementResult<()>{
         let el = document().create_text_node(self);
         parent.append_child(&el)?;
         Ok(())
@@ -58,7 +58,7 @@ macro_rules! impl_tuple {
                 Ok(())
             }
             #[allow(non_snake_case)]
-            fn render_node<'a>(&'a self, parent:&mut Element, map:&mut BTreeMap<&'a str, Element>)->ElementResult<()>{
+            fn render_node(self, parent:&mut Element, map:&mut BTreeMap<String, Element>)->ElementResult<()>{
                 let ($($ident,)+) = self;
                 $($ident.render_node(parent, map)?;)+
                 Ok(())
@@ -75,7 +75,7 @@ macro_rules! impl_types {
                 fn render<W:Write>(&self, w:&mut W)->Result{
                     write!(w, "{}", self)
                 }
-                fn render_node<'a>(&'a self, parent:&mut Element, _map:&mut BTreeMap<&'a str, Element>)->ElementResult<()>{
+                fn render_node(self, parent:&mut Element, _map:&mut BTreeMap<String, Element>)->ElementResult<()>{
                     let el = document().create_text_node(&format!("{}", self));
                     parent.append_child(&el)?;
                     Ok(())
