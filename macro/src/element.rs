@@ -1,11 +1,33 @@
 //use std::sync::Arc;
-use proc_macro2::{TokenStream, Ident, Span};
+use proc_macro2::{TokenStream, Ident};
 use quote::{quote, ToTokens};
-use syn::{Block, Token, Result};
+use syn::ext::IdentExt;
+use syn::{Block, Token, Result, punctuated::Punctuated};
 use syn::parse::{Parse, ParseStream};
 use proc_macro_error::abort;
 use crate::attributes::{Attributes, parse_attributes};
 //use crate::state::get_attributes;
+
+pub type TagName = Punctuated<Ident, Token![-]>;
+
+pub trait TagNameString {
+    fn to_string(&self)->String;
+    fn is_custom_element(&self)->bool;
+}
+
+impl TagNameString for TagName{
+    fn to_string(&self)->String{
+        let mut items = self.iter()
+            .map(|a| a.to_string());
+        let first = items.next().unwrap();
+        items.fold(first, |a, b|format!("{}-{}", a, b))
+    }
+    fn is_custom_element(&self)->bool{
+        let name = self.to_string();
+        let first = name.get(0..1).unwrap();
+        first.to_uppercase() == first
+    }
+}
 
 pub struct Element{
     pub tag:OpeningTag,
@@ -26,7 +48,7 @@ impl Parse for Element{
             }
             let closing_tag = input.parse::<ClosingTag>()?;
             if closing_tag.name != tag.name{
-                abort!(span, format!("Closing tag is missing for '{}'", tag.name));
+                abort!(span, format!("Closing tag is missing for '{}'", tag.name.to_string()));
             }
         }
         //println!("=================== end: Element parsing ########################");
@@ -41,9 +63,7 @@ impl Parse for Element{
 
 impl Element{
     fn is_custom_element(&self)->bool{
-        let name = self.tag.name.to_string();
-        let first = name.get(0..1).unwrap();
-        first.to_uppercase() == first
+        self.tag.name.is_custom_element()
     }
     fn children_stream(&self)->TokenStream{
         match &self.children{
@@ -96,12 +116,12 @@ impl ToTokens for Element{
 }
 
 pub struct OpeningTag{
-    pub name:Ident,
+    pub name:TagName,
     pub self_closing:bool,
     pub attributes:Attributes
 }
-fn get_fragment_ident()->Ident{
-    Ident::new("x", Span::call_site())
+fn get_fragment_tag_name()->TagName{
+    Punctuated::new()// Ident::new("x", Span::call_site())
 }
 impl Parse for OpeningTag{
     fn parse(input: ParseStream) -> Result<Self> {
@@ -110,10 +130,10 @@ impl Parse for OpeningTag{
         let attributes;
         input.parse::<Token![<]>()?;
         if input.peek(Token![>]){
-            name = get_fragment_ident();
+            name = get_fragment_tag_name();
             attributes = Attributes::empty()
         }else{
-            name = input.parse::<Ident>()?;
+            name = TagName::parse_separated_nonempty_with(input, syn::Ident::parse_any)?;
             attributes = parse_attributes(input)?;
             if input.peek(Token![/]){
                 input.parse::<Token![/]>()?;
@@ -132,18 +152,37 @@ impl Parse for OpeningTag{
 }
 
 pub struct ClosingTag{
-    pub name:Ident
+    pub name:TagName
 }
 
 impl Parse for ClosingTag{
     fn parse(input: ParseStream) -> Result<Self> {
+        if input.is_empty() || !input.peek(Token![<]){
+            return Ok(Self{name:get_fragment_tag_name()});
+        }
         input.parse::<Token![<]>()?;
+        if input.is_empty() || input.peek2(Token![/]){
+            //abort!(input.span(), format!("Closing tag is missing"));
+            return Ok(Self{name:get_fragment_tag_name()});
+        }
         input.parse::<Token![/]>()?;
+        if input.is_empty(){
+            return Ok(Self{name:get_fragment_tag_name()});
+        }
         let name;
         if input.peek(Token![>]){
-            name = get_fragment_ident();
+            name = get_fragment_tag_name();
         }else{
-            name = input.parse::<Ident>()?;
+            name = match TagName::parse_separated_nonempty_with(input, syn::Ident::parse_any){
+                Ok(tag_name)=>tag_name,
+                Err(_e)=>{
+                    //for closing tag validation making a empty close tag 
+                    return Ok(Self{name:get_fragment_tag_name()});
+                }
+            };
+        }
+        if input.is_empty() || input.peek2(Token![>]){
+            return Ok(Self{name:get_fragment_tag_name()});
         }
         input.parse::<Token![>]>()?;
         Ok(Self{

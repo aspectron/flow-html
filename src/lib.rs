@@ -85,6 +85,20 @@ mod test{
         assert_eq!(result, "<p><div class=\"xyz\"></div><div class=\"abc\"></div></p>");
     }
     #[test]
+    pub fn custom_elements(){
+        self::print_hr("simple_html");
+        let tree = html!{
+            <flow-select>
+                <flow-menu-item class={"xyz"} />
+                <flow-menu-item class={"abc"} />
+            </flow-select>
+        };
+        let result = tree.html();
+        println!("tag: {:#?}", tree.tag);
+        println!("html: {}", result);
+        assert_eq!(result, "<flow-select><flow-menu-item class=\"xyz\"></flow-menu-item><flow-menu-item class=\"abc\"></flow-menu-item></flow-select>");
+    }
+    #[test]
     pub fn without_root_element(){
         self::print_hr("without_root_element");
         let tree = html!{
@@ -171,6 +185,7 @@ mod test{
     }
 
     fn print_hr<'a>(_title: &'a str){
-        println!("\n☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁\n");
+        //println!("\n☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁☁\n");
+        println!("\n☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰☰\n")
     }
 }
