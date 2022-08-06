@@ -14,3 +14,4 @@ quote = "1.0.21"
 proc-macro2="1.0.43"
 proc-macro-error = { version = "1", default-features = false }
 lazy_static="*"
+rand="*"

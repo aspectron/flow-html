@@ -1,9 +1,11 @@
 pub mod render;
 pub mod escape;
+pub mod utils;
 pub use flow_html_macro::{html, renderable};
 pub use render::{Render, Result, Write};
 pub use escape::{escape_attr, escape_html};
 use std::collections::BTreeMap;
+pub use utils::{Element as WebElement, document, ElementResult};
 
 #[derive(Debug)]
 pub enum AttributeValue<'a>{
@@ -16,7 +18,8 @@ pub struct Element<'a, T:Render>{
     pub is_fragment:bool,
     pub tag:&'a str,
     pub attributes:BTreeMap<&'a str, AttributeValue<'a>>,
-    pub children:Option<T>
+    pub children:Option<T>,
+    pub reff:Option<(&'a str, &'a str)>
 }
 
 pub trait ElementDefaults {
@@ -32,6 +35,33 @@ pub trait ElementDefaults {
 }
 
 impl<T:Render> Render for Element<'_, T>{
+    fn render_node<'a>(&'a self, parent:&mut WebElement, map:&mut BTreeMap<&'a str, WebElement>)->ElementResult<()>{
+        let mut el = document()
+        .create_element(self.tag)?;
+
+        for (key, value) in &self.attributes{
+            match value{
+                AttributeValue::Bool(v)=>{
+                    if *v {
+                        el.set_attribute(key, "true")?;
+                    }
+                }
+                AttributeValue::Str(v)=>{
+                    el.set_attribute(key, v)?;
+                }
+            }
+        }
+        if let Some((key, value)) = self.reff{
+            el.set_attribute("data-ref", value)?;
+            map.insert(key, el.clone());
+        }
+        if let Some(children) = &self.children{
+            children.render_node(&mut el, map)?;
+        }
+
+        parent.append_child(&el)?;
+        Ok(())
+    }
     fn render<W:Write>(&self, w:&mut W)->Result{
         if self.is_fragment{
             if let Some(children) = &self.children{

@@ -1,4 +1,6 @@
 pub use std::fmt::{Result, Write};
+use crate::utils::{ElementResult, Element, document};
+use std::collections::BTreeMap;
 
 /*
 pub trait RenderBase:Sized{
@@ -11,6 +13,16 @@ pub trait Render:Sized{
         self.render(&mut buf).unwrap();
         buf
     }
+    fn render_tree<'a>(&'a self, parent:&mut Element)->ElementResult<BTreeMap<&'a str, Element>>{
+        let mut map = BTreeMap::new();
+        self.render_node(parent, &mut map)?;
+        Ok(map)
+    }
+    
+    fn render_node<'a>(&'a self, _parent:&mut Element, _map:&mut BTreeMap<&'a str, Element>)->ElementResult<()>{
+        Ok(())
+    }
+
     fn render<W:Write>(&self, w:&mut W)->Result;
 }
 
@@ -27,6 +39,11 @@ impl Render for &str {
     fn render<W:Write>(&self, w:&mut W)->Result{
         write!(w, "{}", self)
     }
+    fn render_node<'a>(&'a self, parent:&mut Element, _map:&mut BTreeMap<&'a str, Element>)->ElementResult<()>{
+        let el = document().create_text_node(self);
+        parent.append_child(&el)?;
+        Ok(())
+    }
 }
 
 macro_rules! impl_tuple {
@@ -40,6 +57,12 @@ macro_rules! impl_tuple {
                 $($ident.render(w)?;)+
                 Ok(())
             }
+            #[allow(non_snake_case)]
+            fn render_node<'a>(&'a self, parent:&mut Element, map:&mut BTreeMap<&'a str, Element>)->ElementResult<()>{
+                let ($($ident,)+) = self;
+                $($ident.render_node(parent, map)?;)+
+                Ok(())
+            }
         }
     }
 }
@@ -51,6 +74,11 @@ macro_rules! impl_types {
             impl Render for $ident {
                 fn render<W:Write>(&self, w:&mut W)->Result{
                     write!(w, "{}", self)
+                }
+                fn render_node<'a>(&'a self, parent:&mut Element, _map:&mut BTreeMap<&'a str, Element>)->ElementResult<()>{
+                    let el = document().create_text_node(&format!("{}", self));
+                    parent.append_child(&el)?;
+                    Ok(())
                 }
             }
         )+

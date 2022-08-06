@@ -9,3 +9,14 @@ authors = ["Flow Developers"]
 flow-html-macro={path="./macro"}
 lazy_static="*"
 regex = "1"
+
+wasm-bindgen="*"
+[dependencies.web-sys]
+version = "0.3.56"
+features = [
+    'console',
+    'Window',
+    'Document',
+    'Element',
+    'Text'
+]

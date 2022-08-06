@@ -8,7 +8,9 @@ use syn::{
     parse::{Parse, ParseStream},
     ext::IdentExt
 };
+use rand::Rng;
 //use std::sync::Arc;
+
 
 pub type AttributeName = Punctuated<Ident, Token![-]>;
 
@@ -85,9 +87,11 @@ impl<'a> Attributes<'a>{
     }
     pub fn to_token_stream(&self)->TokenStream{
         let mut attrs = vec![];
+        let mut ref_field = quote!(reff:None);
         for attr in &self.list{
             let name = attr.get_name();
             let value = attr.get_value();
+            let mut append = true;
             let value = match attr.attr_type{
                 AttributeType::Bool=>{
                     quote!{flow_html::AttributeValue::Bool(#value)}
@@ -98,13 +102,20 @@ impl<'a> Attributes<'a>{
                 AttributeType::String=>{
                     quote!{flow_html::AttributeValue::Str(&#value)}
                 }
+                AttributeType::Ref=>{
+                    ref_field = quote!{reff: Some((#name, #value))};
+                    append = false;
+                    quote!()
+                }
             };
-
-            attrs.push(quote!(
-                map.insert(#name, #value);
-            ));
+            if append{
+                attrs.push(quote!(
+                    map.insert(#name, #value);
+                ));
+            }
         }
         quote!{
+            #ref_field,
             attributes:{
                 let mut map = std::collections::BTreeMap::new();
                 #(#attrs)*
@@ -123,7 +134,8 @@ pub enum AttributeValue<'a>{
 pub enum AttributeType{
     Bool,
     Str,
-    String
+    String,
+    Ref
 }
 pub struct Attribute<'a>{
     pub name: AttributeName,
@@ -159,7 +171,17 @@ impl<'a> Attribute<'a>{
                 
             }
             None => {
-                self.name.to_token_stream()
+                match self.attr_type{
+                    AttributeType::Ref=>{
+                        let mut rng = rand::thread_rng();
+                        let code = format!("ref_{}", rng.gen::<u32>());
+                        quote!(#code)
+                    }
+                    _=>{
+                        self.name.to_token_stream()
+                    }
+                }
+                
             }
         }
     }
@@ -174,7 +196,11 @@ impl<'a> Parse for Attribute<'a>{
         }else if input.peek(Token![&]){
             input.parse::<Token![&]>()?;
             attr_type = AttributeType::String;
+        }else if input.peek(Token![@]){
+            input.parse::<Token![@]>()?;
+            attr_type = AttributeType::Ref;
         }
+        
         let name = AttributeName::parse_separated_nonempty_with(input, syn::Ident::parse_any)?;
         if input.peek(Token![=]){
             input.parse::<Token![=]>()?;
