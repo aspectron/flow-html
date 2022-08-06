@@ -1,7 +1,7 @@
 pub mod render;
 pub mod escape;
 pub mod utils;
-pub use flow_html_macro::{html, html_core, renderable};
+pub use flow_html_macro::{html, tree, html_str, renderable};
 pub use render::{Render, Result, Write};
 pub use escape::{escape_attr, escape_html};
 use std::collections::BTreeMap;
@@ -95,7 +95,7 @@ impl<T:Render> Render for Element<'_, T>{
 #[cfg(test)]
 mod test{
     //cargo test -- --nocapture --test-threads=1
-    use crate::html_core;
+    use crate::tree;
     use crate as flow_html;
     use crate::Render;
     use crate::renderable;
@@ -103,7 +103,7 @@ mod test{
     #[test]
     pub fn simple_html(){
         self::print_hr("simple_html");
-        let tree = html_core!{
+        let tree = tree!{
             <p>
                 <div class="xyz abc active">"some inner html"</div>
                 <div class={"abc"}></div>
@@ -117,7 +117,7 @@ mod test{
     #[test]
     pub fn custom_elements(){
         self::print_hr("simple_html");
-        let tree = html_core!{
+        let tree = tree!{
             <flow-select>
                 <flow-menu-item class={"xyz"} />
                 <flow-menu-item class={"abc"} />
@@ -131,7 +131,7 @@ mod test{
     #[test]
     pub fn without_root_element(){
         self::print_hr("without_root_element");
-        let tree = html_core!{
+        let tree = tree!{
             <div class={"xyz"}></div>
             <div class={"abc"}></div>
         };
@@ -187,7 +187,7 @@ mod test{
         //let selected = "1".to_string();
         let name2 = "aaa".to_string();
         let name3 = "bbb".to_string();
-        let tree = html_core!{
+        let tree = tree!{
             <div class={"abc"} ?active ?disabled ?active2={false} user data-user-name={"test-node"} &string2>
                 {123} {"hello"} {world} {num} {num} {num} {string} {true}
                 {1.2 as f64}

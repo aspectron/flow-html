@@ -15,8 +15,12 @@ pub trait Render:Sized{
     }
     fn render_tree(self)->ElementResult<BTreeMap<String, Element>>{
         let mut parent = document().create_element("div").unwrap();
+        let map = self.render_tree_into(&mut parent)?;
+        Ok(map)
+    }
+    fn render_tree_into(self, parent: &mut Element)->ElementResult<BTreeMap<String, Element>>{
         let mut map = BTreeMap::new();
-        self.render_node(&mut parent, &mut map)?;
+        self.render_node(parent, &mut map)?;
         Ok(map)
     }
     

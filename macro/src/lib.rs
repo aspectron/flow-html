@@ -18,7 +18,7 @@ use proc_macro_error::proc_macro_error;
 
 #[proc_macro]
 #[proc_macro_error]
-pub fn html_core(input: TokenStream) -> TokenStream {
+pub fn tree(input: TokenStream) -> TokenStream {
     let nodes =  parse_macro_input!(input as Nodes);
     let ts = quote!{#nodes};
     //println!("\n===========> Nodes Object tree <===========\n{}\n", ts.to_string());
@@ -35,6 +35,19 @@ pub fn html(input: TokenStream) -> TokenStream {
         let elements = #ts;
 
         elements.render_tree()
+    }).into()
+}
+
+#[proc_macro]
+#[proc_macro_error]
+pub fn html_str(input: TokenStream) -> TokenStream {
+    let nodes =  parse_macro_input!(input as Nodes);
+    let ts = quote!{#nodes};
+    //println!("\n===========> Nodes Object tree <===========\n{}\n", ts.to_string());
+    quote!({
+        let elements = #ts;
+
+        elements.html()
     }).into()
 }
 
