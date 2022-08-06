@@ -18,11 +18,24 @@ use proc_macro_error::proc_macro_error;
 
 #[proc_macro]
 #[proc_macro_error]
-pub fn html(input: TokenStream) -> TokenStream {
+pub fn html_core(input: TokenStream) -> TokenStream {
     let nodes =  parse_macro_input!(input as Nodes);
     let ts = quote!{#nodes};
     //println!("\n===========> Nodes Object tree <===========\n{}\n", ts.to_string());
     ts.into()
+}
+
+#[proc_macro]
+#[proc_macro_error]
+pub fn html(input: TokenStream) -> TokenStream {
+    let nodes =  parse_macro_input!(input as Nodes);
+    let ts = quote!{#nodes};
+    //println!("\n===========> Nodes Object tree <===========\n{}\n", ts.to_string());
+    quote!({
+        let elements = #ts;
+
+        elements.render_tree()
+    }).into()
 }
 
 struct RenderableAttributes {
