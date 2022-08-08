@@ -1,11 +1,15 @@
 pub mod render;
 pub mod escape;
 pub mod utils;
+pub mod interface;
+pub use interface::Html;
+
 pub use flow_html_macro::{html, tree, html_str, renderable};
 pub use render::{Render, Result, Write};
 pub use escape::{escape_attr, escape_html};
 use std::collections::BTreeMap;
 pub use utils::{Element as WebElement, document, ElementResult};
+
 
 #[derive(Debug)]
 pub enum AttributeValue<'a>{

@@ -1,6 +1,8 @@
 pub use std::fmt::{Result, Write};
 use crate::utils::{ElementResult, Element, document};
 use std::collections::BTreeMap;
+use crate::Html;
+
 
 /*
 pub trait RenderBase:Sized{
@@ -13,7 +15,8 @@ pub trait Render:Sized{
         self.render(&mut buf).unwrap();
         buf
     }
-    fn render_tree(self)->ElementResult<(Vec<Element>, BTreeMap<String, Element>)>{
+    // fn render_tree(self)->ElementResult<(Vec<Element>, BTreeMap<String, Element>)>{
+    fn render_tree(self)->ElementResult<Html>{
         let mut parent = document().create_element("div").unwrap();
         //parent.set_attribute("class", "temp-root")?;
         let map = self.render_tree_into(&mut parent)?;
@@ -25,7 +28,7 @@ pub trait Render:Sized{
                 list.push(child);
             }
         }
-        Ok((list, map))
+        Ok(Html::new(list, map)?)
     }
     fn render_tree_into(self, parent: &mut Element)->ElementResult<BTreeMap<String, Element>>{
         let mut map = BTreeMap::new();
