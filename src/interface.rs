@@ -23,9 +23,9 @@ impl Html {
         &self.hooks
     }
 
-    pub fn inject_into_element(&self, target : &Element) -> ElementResult<()> {
+    pub fn inject_into(&self, element : &Element) -> ElementResult<()> {
         for root in self.roots.iter() {
-            target.append_child(&root)?;
+            element.append_child(&root)?;
         }
         Ok(())
     }
